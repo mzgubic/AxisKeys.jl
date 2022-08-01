@@ -13,19 +13,41 @@
     end
 
     @testset "ProjectTo" begin
-        data = rand(3)
-        ka = wrapdims(data, a=1:3)
-        p = ProjectTo(ka)
-        @test p(data) == ka
+        ka = wrapdims(rand(3, 3); a=1:3, b='a':'c')
 
-        @test p(NoTangent()) == NoTangent()
+        @testset "NoTangent()" begin
+            @test NoTangent() == ProjectTo(ka)(NoTangent())
+        end
 
-        data = rand(3, 4)
-        ka = wrapdims(data, a=1:3, b='a':'d')
-        p = ProjectTo(ka)
-        @test p(data) == ka
+        @testset "(:c, :d) -> (:a, :b) == error" begin
+            kb = wrapdims(rand(3, 3); c=1:3, d='a':'c')
+            @test_throws DimensionMismatch ProjectTo(ka)(kb)
+        end
 
-        @test p(NoTangent()) == NoTangent()
+        @testset "(:_, :_) -> (:a, :b) == (:a, :b)" begin
+            x = rand(3, 3)
+            projected = @inferred ProjectTo(ka)(x)
+            @test dimnames(projected) == dimnames(ka)
+        end
+
+        @testset "(:a, :_) -> (:a, :b) == (:a, :b)" begin
+            kb = wrapdims(rand(3, 3); a=1:3, _='a':'c')
+            projected = @inferred ProjectTo(ka)(kb)
+            @test dimnames(projected) == dimnames(ka)
+        end
+
+        @testset "(:a, :b) -> (:a, :_) == (:a, :b)" begin
+            kb = wrapdims(rand(3, 3); a=1:3, _='a':'c')
+            projected = @inferred ProjectTo(kb)(ka) # switched order compared to above
+            @test dimnames(projected) == dimnames(ka)
+        end
+
+        @testset "(:_, :b) -> (:a, :_) == (:a, :b)" begin
+            k1 = wrapdims(rand(3, 3); a=1:3, _='a':'c')
+            k2 = wrapdims(rand(3, 3); _=1:3, b='a':'c')
+            projected = @inferred ProjectTo(k1)(k2)
+            @test dimnames(projected) == (:a, :b)
+        end
     end
 
     @testset "KeyedVector" begin

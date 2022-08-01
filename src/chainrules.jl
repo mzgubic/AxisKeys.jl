@@ -1,15 +1,22 @@
 using ChainRulesCore
 
-function ChainRulesCore.ProjectTo(x::Union{KaNda, NdaKa})
-    return ProjectTo{KeyedArray}(;data=ProjectTo(keyless_unname(x)), keys=named_axiskeys(x))
+function ChainRulesCore.ProjectTo(x::KaNda)
+    return ProjectTo{KeyedArray}(;data=ProjectTo(parent(x)), keys=named_axiskeys(x))
 end
 
-function ChainRulesCore.ProjectTo(x::KeyedArray)
+function ChainRulesCore.ProjectTo(x::KeyedArray) # TODO: determine whether this is needed
     return ProjectTo{KeyedArray}(;data=ProjectTo(keyless(x)), keys=axiskeys(x))
 end
 
-(project::ProjectTo{KeyedArray})(dx) = wrapdims(project.data(parent(dx)), project.keys...)
 (project::ProjectTo{KeyedArray})(dx::AbstractZero) = dx
+function (project::ProjectTo{KeyedArray})(dx)
+    @show project.data(dx)
+    @show project.keys
+    new_data = project.data(dx)
+    new_keys = NamedTuple{dimnames(new_data)}(project.keys)
+    @show new_keys
+    return KeyedArray(new_data; new_keys...)
+end
 
 _KeyedArray_pullback(ȳ, project) = (NoTangent(), project(ȳ))
 _KeyedArray_pullback(ȳ::Tangent, project) = _KeyedArray_pullback(ȳ.data, project)
